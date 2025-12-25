@@ -1,61 +1,109 @@
-name: Build Android Java Library
+package Ar.Royall;
 
-on:
-  push:
-    paths:
-      - "Ar/**"
-  workflow_dispatch:
+import android.app.Activity;
+import android.view.View;
+import android.widget.PopupMenu;
 
-permissions:
-  contents: write
+public class PopupX {
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+    /* =======================
+       INNER DATA CLASS
+       ======================= */
+    public static class MItem {
+        public String title;
+        public int icon;
+        public Runnable click;
+        public MItem[] sub;
 
-    steps:
-      - uses: actions/checkout@v4
+        public MItem(String t, int i, Runnable r) {
+            title = t;
+            icon = i;
+            click = r;
+        }
 
-      # Java 17 for Android SDK tools
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+        public MItem(String t, MItem[] s) {
+            title = t;
+            sub = s;
+        }
+    }
 
-      - name: Install Android SDK (API 28)
-        run: |
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
-          unzip sdk.zip -d android-sdk
-          yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "platforms;android-28"
+    /* =======================
+       SINGLE ACTIVE CONTROL
+       ======================= */
+    private static PopupMenu active;
+    private static int token = 0; // 👈 generation guard
 
-      # Java 8 for Sketchware-safe compilation
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 8
+    /* =======================
+       PUBLIC API
+       ======================= */
+    public static void show(
+            View v,
+            Activity cntx,
+            MItem[] items,
+            Runnable onDismiss
+    ) {
 
-      - name: Compile
-        run: |
-          rm -rf out
-          mkdir out
-          javac -source 1.8 -target 1.8 \
-                -cp android-sdk/platforms/android-28/android.jar \
-                -d out $(find Ar -name "*.java")
+        // new request → invalidate previous ones
+        final int myToken = ++token;
 
-      - name: Build jar
-        run: |
-          cd out
-          jar cf classes.jar .
+        // dismiss currently visible popup
+        if (active != null) {
+            try { active.dismiss(); } catch (Exception ignored) {}
+            active = null;
+        }
 
-      - name: Save jar to repo
-        run: |
-          mkdir -p library
-          mv out/classes.jar library/classes.jar
+        v.post(() -> {
 
-      - name: Commit jar
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add library/classes.jar
-          git commit -m "Auto build library jar" || echo "No changes"
-          git push
+            // ❌ outdated request → do nothing
+            if (myToken != token) return;
+
+            PopupMenu p = new PopupMenu(cntx, v);
+            active = p;
+
+            addItems(p.getMenu(), items);
+
+            // optional: force icons (ROM dependent)
+            try {
+                java.lang.reflect.Method m =
+                    p.getMenu().getClass()
+                        .getDeclaredMethod("setOptionalIconsVisible", boolean.class);
+                m.setAccessible(true);
+                m.invoke(p.getMenu(), true);
+            } catch (Exception ignored) {}
+
+            p.setOnDismissListener(new PopupMenu.OnDismissListener() {
+                @Override
+                public void onDismiss(PopupMenu menu) {
+                    if (active == menu) active = null;
+                    if (onDismiss != null) onDismiss.run();
+                }
+            });
+
+            p.show();
+        });
+    }
+
+    /* =======================
+       INTERNAL RECURSION
+       ======================= */
+    private static void addItems(android.view.Menu menu, MItem[] items) {
+
+        for (MItem it : items) {
+
+            if (it.sub == null) {
+
+                menu.add(it.title)
+                    .setIcon(it.icon)
+                    .setOnMenuItemClickListener(i -> {
+                        if (it.click != null) it.click.run();
+                        return true;
+                    });
+
+            } else {
+
+                android.view.SubMenu sm = menu.addSubMenu(it.title);
+                addItems(sm, it.sub);
+            }
+        }
+    }
+}
