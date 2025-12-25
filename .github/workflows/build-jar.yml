@@ -1,4 +1,4 @@
-name: Build Library Jar
+name: Build Android Java Library
 
 on:
   push:
@@ -18,11 +18,17 @@ jobs:
           distribution: temurin
           java-version: 8
 
+      - name: Install Android SDK
+        run: |
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
+          unzip sdk.zip -d android-sdk
+          yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "platforms;android-34"
+
       - name: Compile
         run: |
           rm -rf out
           mkdir out
-          javac -d out $(find Ar -name "*.java")
+          javac -cp android-sdk/platforms/android-34/android.jar -d out $(find Ar -name "*.java")
 
       - name: Build jar
         run: |
