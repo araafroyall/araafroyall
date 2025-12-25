@@ -13,19 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Java 17 only for sdkmanager
+      # Java 17 only to run Android SDK tools
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Install Android SDK
+      - name: Install Android SDK (API 28)
         run: |
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
           unzip sdk.zip -d android-sdk
-          yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "platforms;android-34"
+          yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "platforms;android-28"
 
-      # Switch back to Java 8 for compilation (Sketchware safe)
+      # Java 8 for Sketchware-safe compilation
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -35,15 +35,26 @@ jobs:
         run: |
           rm -rf out
           mkdir out
-          javac -cp android-sdk/platforms/android-34/android.jar -d out $(find Ar -name "*.java")
+          javac -source 1.8 -target 1.8 \
+                -cp android-sdk/platforms/android-28/android.jar \
+                -d out $(find Ar -name "*.java")
 
       - name: Build jar
         run: |
           cd out
-          jar cf classes.jar Ar
+          jar cf classes.jar .
 
-      - name: Upload jar
-        uses: actions/upload-artifact@v4
-        with:
-          name: classes-jar
-          path: out/classes.jar
+      # Save jar inside your repo
+      - name: Save jar to repo
+        run: |
+          mkdir -p library
+          mv out/classes.jar library/classes.jar
+
+      # Auto-commit jar
+      - name: Commit jar
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add library/classes.jar
+          git commit -m "Auto build library jar" || echo "No changes"
+          git push
