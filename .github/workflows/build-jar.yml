@@ -6,6 +6,9 @@ on:
       - "Ar/**"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Java 17 only to run Android SDK tools
+      # Java 17 for Android SDK tools
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -44,13 +47,11 @@ jobs:
           cd out
           jar cf classes.jar .
 
-      # Save jar inside your repo
       - name: Save jar to repo
         run: |
           mkdir -p library
           mv out/classes.jar library/classes.jar
 
-      # Auto-commit jar
       - name: Commit jar
         run: |
           git config user.name "github-actions"
