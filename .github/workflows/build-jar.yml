@@ -13,16 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Java 17 only for sdkmanager
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
 
       - name: Install Android SDK
         run: |
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
           unzip sdk.zip -d android-sdk
           yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "platforms;android-34"
+
+      # Switch back to Java 8 for compilation (Sketchware safe)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 8
 
       - name: Compile
         run: |
