@@ -28,7 +28,7 @@ public class PopupX {
     }
 
     /* =======================
-       SINGLE ACTIVE CONTROL
+       SINGLE ACTIVE CONTROL.
        ======================= */
     private static PopupMenu active;
     private static int token = 0; // 👈 generation guard
