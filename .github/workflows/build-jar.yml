@@ -16,41 +16,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Java 17 for Android SDK tools
+      # ---- Install Java 17 ONLY for Android SDK ----
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Install Android SDK (API 28)
+      # ---- Install Android SDK properly ----
+      - name: Install Android SDK 28
         run: |
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
-          unzip sdk.zip -d android-sdk
-          yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "platforms;android-28"
+          mkdir -p $HOME/android-sdk
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O sdk.zip
+          unzip -q sdk.zip -d $HOME/android-sdk
+          yes | $HOME/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-28"
 
-      # Java 8 for Sketchware-safe compilation
+      # ---- Switch JVM to Java 8 for Sketchware-safe bytecode ----
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 8
 
-      - name: Compile
+      # ---- Compile Java 8 bytecode ----
+      - name: Compile library
         run: |
           rm -rf out
           mkdir out
-          javac -source 1.8 -target 1.8 \
-                -cp android-sdk/platforms/android-28/android.jar \
-                -d out $(find Ar -name "*.java")
+          javac -g:none -nowarn -encoding UTF-8 \
+            -source 1.8 -target 1.8 \
+            -cp $HOME/android-sdk/platforms/android-28/android.jar \
+            -d out $(find Ar -name "*.java")
 
+      # ---- Package clean jar ----
       - name: Build jar
         run: |
           cd out
-          jar cf classes.jar .
+          jar cf ../classes.jar .
 
-      - name: Save jar to repo
+      # ---- Store into repo ----
+      - name: Save jar
         run: |
           mkdir -p library
-          mv out/classes.jar library/classes.jar
+          mv classes.jar library/classes.jar
 
       - name: Commit jar
         run: |
